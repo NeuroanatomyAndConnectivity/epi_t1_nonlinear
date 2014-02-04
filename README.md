@@ -2,12 +2,10 @@ epi_t1_nonlinear.py
 ================
 
 Perfoms nonlinear EPI to T1 registration using antsRegistration. 
-Beforehand, the T1 image has to be processed in freesurfer and the EPI timeseries should be motion corrected.
+Before, the T1 image has to be processed in freesurfer and the EPI timeseries should be motion corrected.
 The code works as a reusable nipype workflow or commandline tool. 
 
-
 ###nipype
-
 example
 ```
 nipype_epi_t1_nonlin = create_epi_t1_nonlinear_pipeline('nipype_epi_t1_nonlin')
@@ -35,11 +33,11 @@ outputnode.nonlin_anat2epi  # ANTs specific 5D deformation field
 ###commandline
 
 ```
-- h, --help    show this help message and exit
-- epi EPI      realigned EPI timeseries
-- fsdir FSDIR  path to freesurfer subjects directory
-- fsid FSID    subject id used in freesurfer
-- wd WD        working directory to store output
+-h, --help    show this help message and exit
+-epi EPI      realigned EPI timeseries
+-fsdir FSDIR  path to freesurfer subjects directory
+-fsid FSID    subject id used in freesurfer
+-wd WD        working directory to store output
 ```
 
 
@@ -49,10 +47,10 @@ outputnode.nonlin_anat2epi  # ANTs specific 5D deformation field
 reduce_deformation_fields.py
 ================
 
-Reducing dimensions of ANTs specific 5D deformation fields
+Reduces dimensions of ANTs specific 5D deformation fields to 4
 ```
-- h, --help      show this help message and exit
-- i FILE_NAME    path to 5d deformation field
-- o OUTPUT_NAME  4d output file name
+-h, --help      show this help message and exit
+-i FILE_NAME    path to 5d deformation field
+-o OUTPUT_NAME  4d output file name
 ```
 
