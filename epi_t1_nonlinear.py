@@ -1,4 +1,4 @@
-
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 from nipype.pipeline.engine import Node, Workflow
@@ -20,8 +20,8 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     -------
 
     >>> nipype_epi_t1_nonlin = create_epi_t1_nonlinear_pipeline('nipype_epi_t1_nonlin')
-    >>> nipype_epi_t1_nonlin.inputs.inputnode.subject_id = '123456'
-    >>> nipype_epi_t1_nonlin.inputs.inputnode.fs_path = '/project/data/freesurfer'
+    >>> nipype_epi_t1_nonlin.inputs.inputnode.fs_subject_id = '123456'
+    >>> nipype_epi_t1_nonlin.inputs.inputnode.fs_subjects_dir = '/project/data/freesurfer'
     >>> nipype_epi_t1_nonlin.inputs.inputnode.realigned_epi = 'mcflirt.nii.gz'
     >>> nipype_epi_t1_nonlin.run()
 
@@ -213,4 +213,20 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
 
 
 
+import argparse
+
+if __name__=='__main__':
+    parser = argparse.ArgumentParser(description='nipype epi_t1_nonlinear workflow for commandline use')
+    parser.add_argument("-epi", dest="epi",help="realigned EPI timeseries", required=True)
+    parser.add_argument("-fsdir", dest="fsdir",help="path to freesurfer subjects directory",required=True)
+    parser.add_argument("-fsid", dest="fsid",help="subject id used in freesurfer",required=True)
+    parser.add_argument("-wd", dest="wd",help="working directory to store output",required=True)
+    args = parser.parse_args()
+    
+    nipype_epi_t1_nonlin = create_epi_t1_nonlinear_pipeline('nipype_epi_t1_nonlin')
+    nipype_epi_t1_nonlin.base_dir = args.wd
+    nipype_epi_t1_nonlin.inputs.inputnode.fs_subject_id = args.fsid
+    nipype_epi_t1_nonlin.inputs.inputnode.fs_subjects_dir = args.fsdir
+    nipype_epi_t1_nonlin.inputs.inputnode.realigned_epi = args.epi
+    nipype_epi_t1_nonlin.run()
 
