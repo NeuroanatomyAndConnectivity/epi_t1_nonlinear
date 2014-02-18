@@ -6,7 +6,7 @@ Created on Feb 18, 2014
 
 a = 10
 
-for i in range(10):
+for i in range(100):
     a -= 1
     
 print a
