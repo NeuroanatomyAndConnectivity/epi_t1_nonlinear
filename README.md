@@ -47,10 +47,10 @@ outputnode.nonlin_anat2epi  # ANTs specific 5D deformation field
 reduce_deformation_fields.py
 ================
 
-Reduces dimensions of ANTs specific 5D deformation fields to 4
+Reduces dimensions of ANTs specific 5D deformation fields to 4D
 ```
 -h, --help      show this help message and exit
--i FILE_NAME    path to 5d deformation field
--o OUTPUT_NAME  4d output file name
+-i FILE_NAME    path to 5D deformation field
+-o OUTPUT_NAME  4D output file name
 ```
 
