@@ -12,10 +12,10 @@ import os
 from nipype.utils.filemanip import filename_to_list
 
 ###### initiate workflow and set directories 
-nonreg = Workflow(name='c_ants_masking')#(name='epi_t1_nonlinear')
-nonreg.base_dir='/scr/ilz1/nonlinear_registration/nki/optimisation/c_ants_masking/working_dir'
+nonreg = Workflow(name='epi_t1_nonlinear')
+nonreg.base_dir='/scr/ilz1/nonlinear_registration/nki/optimisation/b_redo_old/working_dir'
 data_dir = '/scr/kalifornien1/data/nki_enhanced/'
-output_dir = '/scr/ilz1/nonlinear_registration/nki/optimisation/c_ants_masking'
+output_dir = '/scr/ilz1/nonlinear_registration/nki/b_redo_old'
 subjects = ['0109727','0111282','0144667']
 #folder = !ls '/scr/kalifornien1/data/nki_enhanced/niftis'
 #subjects = folder[0:221]
@@ -231,8 +231,6 @@ antsregistration = Node(ants.registration.Registration(dimension = 3,
 nonreg.connect(c3daffine, 'itk_transform', antsregistration, 'initial_moving_transform')
 nonreg.connect(mask_orig_epi, 'out_file', antsregistration, 'fixed_image')
 nonreg.connect(addinv, 'out_file', antsregistration, 'moving_image')
-nonreg.connect(transformmask, 'output_image', antsregistration, 'fixed_image_mask')
-nonreg.connect(intersect, 'out_file', antsregistration, 'moving_image_mask')
 nonreg.connect(antsregistration, 'inverse_warped_image' , sink, 'nonlin_transform.@masked_nonlin_inv_warp')
 nonreg.connect(antsregistration, 'warped_image' , sink, 'nonlin_transform.@masked_nonlin_warp')
 nonreg.connect(antsregistration, 'reverse_transforms', sink, 'nonlin_transform.@masked_nonlin_inv_deform_field')
