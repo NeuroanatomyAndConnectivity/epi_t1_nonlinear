@@ -14,7 +14,7 @@ import os
 nonreg = Workflow(name='epi_t1_nonlinear')
 nonreg.base_dir='/scr/ilz1/nonlinear_registration/nki/optimisation/b_redo_old/working_dir'
 data_dir = '/scr/kalifornien1/data/nki_enhanced/'
-output_dir = '/scr/ilz1/nonlinear_registration/nki/b_redo_old'
+output_dir = '/scr/ilz1/nonlinear_registration/nki/optimisation/b_redo_old'
 subjects = ['0109727','0111282','0144667']
 #folder = !ls '/scr/kalifornien1/data/nki_enhanced/niftis'
 #subjects = folder[0:221]
@@ -255,25 +255,19 @@ nonreg.connect(mask_lin_epi, 'out_file', sink, 'lin_transform.@masked_lin_warp')
 
 
 ##### apply nonlinear transform to unmasked epi
-def make_list_total(lin_transform, inv_nonlin_transform):
-    total_list = [lin_transform, inv_nonlin_transform[1]]
-    return total_list
+merge_transforms = Node(util.Merge(2),
+              name='merge_transforms')
 
-list_total_transform = Node(util.Function(input_names=['lin_transform', 'inv_nonlin_transform'],
-                                 output_names=['total_list'],
-                                 function=make_list_total),
-              name='transformlist')
-
-nonreg.connect(c3daffine, 'itk_transform', list_total_transform, 'lin_transform')
-nonreg.connect(antsregistration, 'reverse_transforms', list_total_transform, 'inv_nonlin_transform')
+nonreg.connect(c3daffine, 'itk_transform', merge_transforms, 'in1')
+nonreg.connect(antsregistration, 'reverse_transforms', merge_transforms, 'in2')
 
 
 nonlin_orig = Node(ants.resampling.ApplyTransforms(dimension=3), 
                    name='nonlintrans_epi')
 
-nonreg.connect(list_total_transform, 'total_list', nonlin_orig, 'transforms')
+nonreg.connect(merge_transforms, 'out', nonlin_orig, 'transforms')
 nonreg.connect(calc_mean, 'out_file', nonlin_orig, 'input_image')
-nonreg.connect(addinv, 'out_file',  nonlin_orig, 'reference_image')
+nonreg.connect(mriconvert, 'out_file',  nonlin_orig, 'reference_image')
 nonreg.connect(nonlin_orig, 'output_image', sink, 'nonlin_transform.@nonlin_inv_warp')
 
 
