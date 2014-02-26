@@ -9,7 +9,6 @@ import nipype.interfaces.ants as ants
 import nipype.interfaces.c3 as c3
 import nipype.interfaces.freesurfer as fs
 import os
-from nipype.utils.filemanip import filename_to_list
 
 ###### initiate workflow and set directories 
 nonreg = Workflow(name='epi_t1_nonlinear')
@@ -125,7 +124,7 @@ transformbb = Node(ants.resampling.ApplyTransforms(dimension=3,
                                              interpolation='NearestNeighbor'),
                    name='boundingbox_mask2fs')
 
-nonreg.connect(c3daffine, ('itk_transform', filename_to_list), transformbb, 'transforms')
+nonreg.connect(c3daffine, 'itk_transform', transformbb, 'transforms')
 nonreg.connect(boundingbox, 'binary_file', transformbb, 'input_image')
 nonreg.connect(bin_dil, 'binary_file', transformbb, 'reference_image')
 
@@ -190,7 +189,7 @@ transformmask = Node(ants.resampling.ApplyTransforms(dimension=3,
                                              invert_transform_flags=[True]), 
                      name = 'combinedmask2epi')
 
-nonreg.connect(c3daffine, ('itk_transform', filename_to_list), transformmask, 'transforms')
+nonreg.connect(c3daffine, 'itk_transform', transformmask, 'transforms')
 nonreg.connect(intersect, 'out_file',  transformmask, 'input_image')
 nonreg.connect(calc_mean, 'out_file', transformmask, 'reference_image')
 nonreg.connect(transformmask, 'output_image', sink, 'mask.@combined_mask_epispace')
@@ -241,7 +240,7 @@ nonreg.connect(antsregistration, 'forward_transforms', sink, 'nonlin_transform.@
 lin_epi = Node(ants.resampling.ApplyTransforms(dimension=3),
                    name='lintrans_epi')
 
-nonreg.connect(c3daffine, ('itk_transform', filename_to_list), lin_epi, 'transforms')
+nonreg.connect(c3daffine, 'itk_transform', lin_epi, 'transforms')
 nonreg.connect(calc_mean, 'out_file', lin_epi, 'input_image')
 nonreg.connect(addinv, 'out_file', lin_epi, 'reference_image')
 nonreg.connect(lin_epi, 'output_image', sink, 'lin_transform.@lin_warp')
