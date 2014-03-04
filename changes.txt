@@ -88,6 +88,26 @@ change e: finetuning of parameters
 
 #############################################################################
 
+g testing bsplinesyn
+
+1 changing to bpslinesyn with parameters as described in paper
+(also replacing file_to_list)
+-> this is less extreme compared to the old approach (a) but it also recovers less. 
+-> maybe try this without any masking?
+
+2 like 1 but without any masking
+-> too big, cerebellum/brain stem screwed
+
+3 like 1 but with recip
+-> this stretches out more than 1, but not very favourable (in the middle)
+
+4 like 3 but with tighter mask dil0
+-> not soo bad, recovers not too nice but good in terms of borders
+-> cc doesn't look good
+
+########################################################################
+
+
 i include affine step again
 -> affine doesn't look good, nonlinear even worse, very big
 
