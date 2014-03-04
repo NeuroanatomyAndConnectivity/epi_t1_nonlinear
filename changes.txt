@@ -88,6 +88,20 @@ change e: finetuning of parameters
 
 #############################################################################
 
+f any (+ cleaning up workflow)
+
+1 dilation to 0 masking in ants, recip
+-> really weird, stretches out somewhere
+
+
+2 dil back to 3
+-> really deformed, if i am right the only difference to c8, where it kind of worked
+is the inversion (i.e. background = 0)
+
+3 try mask in epi space for both images in ants
+
+###############################################################################################
+
 g testing bsplinesyn
 
 1 changing to bpslinesyn with parameters as described in paper
