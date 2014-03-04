@@ -1,0 +1,94 @@
+change c ants_masking
+
+1 using unmasked images and combined mask as fixed and moving image mask 
+(for fixed:linearly transformed combined mask)
+-> this makes the transformation stretch out less to the edges (at least in all directions but phase encoding
+-> but it seems a bit deformed, the deformation seems to be where the anatomical has a white 'hole' 
+-> in fact, it seems to go
+
+2 same but with sampling percentage increased from 0.3 - 1.0
+-> this doesn't change a thing compared to 1!
+
+3 invert unmasked image and use both unmasked images for nonlinear
+-> of course, this doesn't change too much... 
+-> gaps in the brain image seem to be a problem, as they are zero before, they have very high values afterwards
+-> actually the masking in ants might be slightly better...?
+
+4 keeping changes but trying drastically more iterations (not more levels though for now) as with masking
+pulling to the edges seems to be less extreme
+-> looks pretty good, the only difference on the first glance being, that the epi is stretched more to the front
+but less to the back. whyever
+-> the cc and the veins match better. for some weird reason this doesn't go that much overboard
+-> jay! enough for the day
+-> BUT: ventral OFC maybe less improved? (change restrictions?)
+
+tomorrow: dilation, inversion, restriction
+
+5 changing dilation to 1
+-> worse, only little improvement against nonlinear
+-> weird because the mask actually seems good enough
+
+6 changing dilation to 2
+-> in between dilation 2 and 3
+
+7 no masking whatsoever
+-> totally not
+
+8 changing dilation back to 3 for now, setting sampling strategy to None, moving on to inversion
+-> as expected just like c4
+
+#########################################################
+
+change d inversion
+1 change inversion to robust min/max for epi (not for anat though)
+-> inv anatomical looks better like this, keep the change, but for the nonlinear it doesn't change a thing
++++++++++ problem, that i didn't see in ants_masking: stretching out to the back+++++++++++++++++++++
+
+2 skip inversion completely
+-> this is interesting, it does exactly what it is supposed to do, pushing out to the front, in at the back, just maybe not right enough
+-> no actually in the other brains it is too much of the squeezing in at the back
+
+3 recip instead of inversion
+-> weird in the back, stretches out to the 0 areas?
+
+4 use ribbon mask dil 1 before recip to avoid 'holes'
+-> looks pretty good, compared to c8 it spreads more to the borders again (as no masking in ants)
+-> but using dil1 that doesn't seem too much of a problem
+-> though: does it maybe stretch out too much to the back? and in dorso-ventral directions?
+-> still not happy with this border stretching
+-> since epi wasn't masked cerebellum/brain stem screwed up
+
+5 same with masking epi within ants (with the small dil1 mask)
+-> doesn't change a thing
+
+6 same with masking both in ants
+-> no, this ants masking doesn't really seem to work after all. at least not with the dil1 mask
+-> it stops after fewer interations and gives out a weird squiggled thing
+
+7 like 6 but ants mask dil3 (t1 mask dil1 though)
+-> no, this is too big. it is no good to use this big mask
+
+8 like 4 but also masking epi before again
+-> looks better, but this again seems to do a bit too much stretching, both a-p and d-v
+-> actually has stopped iterating itself (good)
+
+9 like 8 but with restricting def to y direction
+-> no no
+-> reverse the change
+
+++++++ actually 8 looks pretty reasonable, still it is a bit overboard (e.g. 11182 dorsal) but still the best so far.
+also better than old solution (a) ++++++++
+
+###############################################################################
+
+change e: finetuning of parameters
+
+1 w/o any dilation of the ribbon mask
+-> definitely better
+
+#############################################################################
+
+i include affine step again
+-> affine doesn't look good, nonlinear even worse, very big
+
+j 
