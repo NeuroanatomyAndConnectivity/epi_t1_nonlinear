@@ -149,7 +149,7 @@ nonreg.connect(maskanat, 'out_file', sink, 'anat.@masked_brain')
 
 ##### invert masked anatomical
 anat_min_max = Node(fsl.utils.ImageStats(op_string = '-R'), name='derive_anat_intensities')
-epi_min_max = Node(fsl.utils.ImageStats(op_string = '-R'), name='derive_epi_intensities')
+epi_min_max = Node(fsl.utils.ImageStats(op_string = '-r'), name='derive_epi_intensities')
 
 nonreg.connect(maskanat, 'out_file', anat_min_max, 'in_file') 
 nonreg.connect(calc_mean, 'out_file', epi_min_max, 'in_file') 
