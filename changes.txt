@@ -211,7 +211,11 @@ distortions, the epi is a bit bigger after all, maybe segmentation including csf
 5 bspline with distance 40 and undo phase encoding restriction
 -> no, this deforms too much 
 
+###########################################
 
+l mattes
+1 no inversion, simple mattes, bin 32, syn 0.1 all other equal
+-> no no
 
 ###########################################
 
