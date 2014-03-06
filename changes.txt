@@ -125,4 +125,48 @@ g testing bsplinesyn
 i include affine step again
 -> affine doesn't look good, nonlinear even worse, very big
 
-j 
+
+
+
+
+
+####################################################
+k different options starting from fixed masking
+
+1 fewer iterations : 20:10 (and undo j9)
+-> didn't help with the clipping problem
+-> very little difference
+UNDO
+
+2 bspline syn
+-> a bit too constrained, doesn't mess up so much but doesn't help so much either
+
+3 bspline syn try more iterations and levels, shrink and smoothing as in paper
+-> gets a bit better but not fully there as with syn (for 144)
+-> actually it seems pretty good for 0109 and elevating the clipping problem
+-> maybe this is less sensitiv to masking, then i could use a bigger mask, maybe just skull stripping? 
+(because as with syn there are still problems in the back where it deforms despite there shouldn't even really be
+distortions, the epi is a bit bigger after all, maybe segmentation including csf?)
+
+4 bspline syn with less regularisation: reduce spline distance to 16
+-> this was actually more regularisation ?! 
+-> also i don't like it too much in posterior parts
+
+******* UNDO restrict def to phase encoding (some deformation in other directions seems to alleviate weird def)
+
+5 bspline with distance 40 and undo phase encoding restriction
+-> no, this deforms too much 
+
+
+
+###########################################
+
+keep in mind: problem to meet large vein, particularly 0144, this stretches to much in general
+would this be helped with having  a full mask?
+dilate/erode in steps
+mask also epi again before?
+changing fixed/moving
+changing iterations
+other algorithm/metric? (mi after all?)
+
+
