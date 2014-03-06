@@ -125,7 +125,61 @@ g testing bsplinesyn
 i include affine step again
 -> affine doesn't look good, nonlinear even worse, very big
 
+#########################################################################
+j masking twice as suggested in forum
+1 dil 3 intersect with fov for masking in ants (both), dil3 ero3 for masking anatomy before
+-> promising? but actually a bit too small now, ventricles compressed, try dilating the mask even more for usage in ants
+-> images don't totally fit. --> turns out to be problem with nipype 'bugfix'
 
+2 dilating ants mask by 10, calculating tight mask directly from ribbon
+-> should probably dilate and erode in steps, looks a bit edgy
+-> this looks fabulous!
+- maybe still a bit too much in the center, problems in cerebellum/brainstem, etc. but still!
+
+3 try with alternative inversion (recip)
+-> even better (borders and gyri etc match much better)
+-> but problems with cerebellum 
+-> AND: problem with posterior part of cc and veins -> stretches too much now, not with other inversion. (probably try less dilation) 
+-> AND: problems where EPI doesn't cover anatomy (probably mask this out in tight mask?)
+
+4 try orginal inversion but masking afterwards
+-> really really good. 
+-> only things: 
+-> cerebellum/brain stem: try less dilation
+-> still a bit peculiar at FOV border: intersect fov with tight mask
+-> values of inverted brain very high, think about masking-inversion-remasking?
+
+
+5 reducing dilation back to 3
+(and trying to fix ants apply problem)
+-> better
+-> fov still a problem
+-> cerebellum/brainstem still a problem where in dil3 mask
+-> temporal lobes a problem where hardly in mask
+-> would need larger mask but then tight mask for whole brain
+
+6 intersecting both the tight and the dilated mask with the fov
+-> doesn't seem to change anything
+-> problems of weird distortion near that border remain
+-> this is really only for the case where the epi doesn't cover the full anatomy, otherwise looks good
+
+7 inversion back to epi -r instead of -R
+(probably nothing to do with this, just so)
+-> doesn't change. keep and change in master
+
+8 restrict to phase encoding direction
+-> no too much difference, maybe stick with it since it is theoretically cleaner
+******* actually makes undesirable deformations in axial view worse, UNDO in 10 **********
+
+9 erode fov by 3 for the tight mask to keep borders, then dilate whole intersect
+-> erode doesn't work
+ 
+9 new: use mcflirt mean which is already missing a slice
+-> still not, think about this again
+-> has been fixed in nipype, try with var image
+
+10 back to not restrict completely to phase encoding, for fov, use var image which should be clipped
+-> doesn't work , mask isn't clipped, despite image is (probably just has a zero line)
 
 
 
