@@ -58,23 +58,22 @@ mcflirt = Node(fsl.MCFLIRT(output_type = 'NIFTI_GZ',
 
 nonreg.connect(datasource, 'func', mcflirt, 'in_file')
 nonreg.connect(mcflirt, 'out_file', sink, 'realignment')
-
 nonreg.connect(mcflirt, 'par_file',sink, 'realignment.@parameters')
 nonreg.connect(mcflirt, 'mat_file',sink, 'realignment.@matrices')
 
 
 ##### calculate temporal mean
-calc_mean = Node(fsl.maths.MeanImage(dimension='T',
+tmean = Node(fsl.maths.MeanImage(dimension='T',
                                      output_type = 'NIFTI_GZ'), 
                  name='tmean')
 
-nonreg.connect(mcflirt, 'out_file', calc_mean, 'in_file')
-nonreg.connect(calc_mean, 'out_file',sink, 'realignment.@realigned_mean')
+nonreg.connect(mcflirt, 'out_file', tmean, 'in_file')
+nonreg.connect(tmean, 'out_file',sink, 'realignment.@realigned_mean')
 
 
 ##### convert brain.mgz to nifti
 mriconvert = Node(fs.MRIConvert(out_type='niigz'), 
-                  name='mgz2nifti')
+                  name='mriconvert')
 
 nonreg.connect(datasource, 'anat', mriconvert, 'in_file')
 nonreg.connect(mriconvert, 'out_file', sink, 'anat.@brain')
@@ -89,58 +88,58 @@ bbregister = Node(fs.BBRegister(init='fsl',
                   name='bbregister')
 
 nonreg.connect(infosource, 'subject_id', bbregister, 'subject_id')
-nonreg.connect(calc_mean, 'out_file', bbregister, 'source_file')
+nonreg.connect(tmean, 'out_file', bbregister, 'source_file')
 nonreg.connect(bbregister, 'out_fsl_file', sink, 'lin_transform.@fsl_lintransform')
 
 
 ##### convert transformation to itk format
-c3daffine = Node(c3.C3dAffineTool(fsl2ras=True,
+itk = Node(c3.C3dAffineTool(fsl2ras=True,
                                         itk_transform=True), 
-                name='fsl2itk')
+                name='itk')
 
-nonreg.connect(calc_mean, 'out_file', c3daffine, 'source_file')
-nonreg.connect(mriconvert, 'out_file', c3daffine, 'reference_file')
-nonreg.connect(bbregister, 'out_fsl_file', c3daffine, 'transform_file')
-nonreg.connect(c3daffine, 'itk_transform', sink, 'lin_transform.@itk_lintransform')
+nonreg.connect(tmean, 'out_file', itk, 'source_file')
+nonreg.connect(mriconvert, 'out_file', itk, 'reference_file')
+nonreg.connect(bbregister, 'out_fsl_file', itk, 'transform_file')
+nonreg.connect(itk, 'itk_transform', sink, 'lin_transform.@itk_lintransform')
 
 
 ##### binarize and dilate ribbon
-bin_dil = Node(fs.model.Binarize(dilate=3,
+ribbon = Node(fs.model.Binarize(dilate=3,
                                    min=0.1,
                                    out_type='nii.gz'), 
-                name='ribbon_mask')
+                name='ribbon')
 
-nonreg.connect(datasource, 'ribbon', bin_dil, 'in_file')
+nonreg.connect(datasource, 'ribbon', ribbon, 'in_file')
 
 
 ##### create bounding box mask and rigidly transform into freesurfer anatomical space
-boundingbox = Node(fs.model.Binarize(min=0.0,
-                                      out_type='nii.gz'), 
-                name='boundingbox_mask')
+fov = Node(fs.model.Binarize(min=0.0,
+                             out_type='nii.gz'), 
+                name='fov')
 
-nonreg.connect(calc_mean, 'out_file', boundingbox, 'in_file')
+nonreg.connect(tmean, 'out_file', fov, 'in_file')
 
-transformbb = Node(ants.resampling.ApplyTransforms(dimension=3,
+fov_trans = Node(ants.resampling.ApplyTransforms(dimension=3,
                                              interpolation='NearestNeighbor'),
-                   name='boundingbox_mask2fs')
+                   name='fov_trans')
 
-nonreg.connect(c3daffine, 'itk_transform', transformbb, 'transforms')
-nonreg.connect(boundingbox, 'binary_file', transformbb, 'input_image')
-nonreg.connect(bin_dil, 'binary_file', transformbb, 'reference_image')
+nonreg.connect(itk, 'itk_transform', fov_trans, 'transforms')
+nonreg.connect(fov, 'binary_file', fov_trans, 'input_image')
+nonreg.connect(ribbon, 'binary_file', fov_trans, 'reference_image')
 
 
 ##### intersect both masks
 intersect = Node(fsl.maths.BinaryMaths(operation = 'mul'), 
-                 name = 'combined_masks')
+                 name = 'intersect')
 
-nonreg.connect(bin_dil, 'binary_file', intersect, 'in_file')
-nonreg.connect(transformbb, 'output_image', intersect, 'operand_file')
+nonreg.connect(ribbon, 'binary_file', intersect, 'in_file')
+nonreg.connect(fov_trans, 'output_image', intersect, 'operand_file')
 nonreg.connect(intersect, 'out_file', sink, 'mask.@combined_mask_fsvspace')
 
 
 ##### mask anatomical 
 maskanat = Node(fs.utils.ApplyMask(), 
-                name='apply_combined_mask_2anat')
+                name='maskanat')
 
 nonreg.connect(intersect, 'out_file', maskanat, 'mask_file')
 nonreg.connect(mriconvert, 'out_file', maskanat, 'in_file')
@@ -148,11 +147,11 @@ nonreg.connect(maskanat, 'out_file', sink, 'anat.@masked_brain')
 
 
 ##### invert masked anatomical
-anat_min_max = Node(fsl.utils.ImageStats(op_string = '-R'), name='derive_anat_intensities')
-epi_min_max = Node(fsl.utils.ImageStats(op_string = '-r'), name='derive_epi_intensities')
+anat_min_max = Node(fsl.utils.ImageStats(op_string = '-R'), name='anat_min_max')
+epi_min_max = Node(fsl.utils.ImageStats(op_string = '-r'), name='epi_min_max')
 
 nonreg.connect(maskanat, 'out_file', anat_min_max, 'in_file') 
-nonreg.connect(calc_mean, 'out_file', epi_min_max, 'in_file') 
+nonreg.connect(tmean, 'out_file', epi_min_max, 'in_file') 
 
 
 ##### function to calculate add and multiply values from image stats
@@ -166,15 +165,14 @@ def calculate_inversion(anat_min_max, epi_min_max):
 calcinv = Node(util.Function(input_names=['anat_min_max', 'epi_min_max'],
                                  output_names=['mul_fac', 'add_fac'],
                                  function=calculate_inversion),
-              name='inversion')
-
+              name='calcinv')
 
 nonreg.connect(anat_min_max, 'out_stat', calcinv, 'anat_min_max')
 nonreg.connect(epi_min_max, 'out_stat', calcinv, 'epi_min_max')
 
 
-mulinv = Node(fsl.maths.BinaryMaths(operation='mul'), name='multiply_inv')
-addinv = Node(fsl.maths.BinaryMaths(operation='add'), name='add_inv')
+mulinv = Node(fsl.maths.BinaryMaths(operation='mul'), name='mulinv')
+addinv = Node(fsl.maths.BinaryMaths(operation='add'), name='addinv')
 
 nonreg.connect(maskanat, 'out_file', mulinv, 'in_file')
 nonreg.connect(calcinv, 'mul_fac', mulinv, 'operand_value')
@@ -184,23 +182,23 @@ nonreg.connect(addinv, 'out_file', sink, 'anat.@inv_masked_brain')
 
 
 ##### inversly transform mask and mask original epi
-transformmask = Node(ants.resampling.ApplyTransforms(dimension=3,
+mask_trans = Node(ants.resampling.ApplyTransforms(dimension=3,
                                              interpolation='NearestNeighbor',
                                              invert_transform_flags=[True]), 
                      name = 'combinedmask2epi')
 
-nonreg.connect(c3daffine, 'itk_transform', transformmask, 'transforms')
-nonreg.connect(intersect, 'out_file',  transformmask, 'input_image')
-nonreg.connect(calc_mean, 'out_file', transformmask, 'reference_image')
-nonreg.connect(transformmask, 'output_image', sink, 'mask.@combined_mask_epispace')
+nonreg.connect(itk, 'itk_transform', mask_trans, 'transforms')
+nonreg.connect(intersect, 'out_file',  mask_trans, 'input_image')
+nonreg.connect(tmean, 'out_file', mask_trans, 'reference_image')
+nonreg.connect(mask_trans, 'output_image', sink, 'mask.@combined_mask_epispace')
 
 
-mask_orig_epi = Node(fs.utils.ApplyMask(), 
-                name='mask_orig_epi')
+maskepi = Node(fs.utils.ApplyMask(), 
+                name='maskepi')
 
-nonreg.connect(transformmask, 'output_image', mask_orig_epi, 'mask_file')
-nonreg.connect(calc_mean, 'out_file', mask_orig_epi, 'in_file')
-nonreg.connect(mask_orig_epi, 'out_file', sink, 'realignment.@masked_epi')
+nonreg.connect(mask_trans, 'output_image', maskepi, 'mask_file')
+nonreg.connect(tmean, 'out_file', maskepi, 'in_file')
+nonreg.connect(maskepi, 'out_file', sink, 'realignment.@masked_epi')
 
 
 # nonlinear registration with ants
@@ -227,8 +225,8 @@ antsregistration = Node(ants.registration.Registration(dimension = 3,
                                                        output_warped_image = True),
                         name = 'antsregistration')
 
-nonreg.connect(c3daffine, 'itk_transform', antsregistration, 'initial_moving_transform')
-nonreg.connect(mask_orig_epi, 'out_file', antsregistration, 'fixed_image')
+nonreg.connect(itk, 'itk_transform', antsregistration, 'initial_moving_transform')
+nonreg.connect(maskepi, 'out_file', antsregistration, 'fixed_image')
 nonreg.connect(addinv, 'out_file', antsregistration, 'moving_image')
 nonreg.connect(antsregistration, 'inverse_warped_image' , sink, 'nonlin_transform.@masked_nonlin_inv_warp')
 nonreg.connect(antsregistration, 'warped_image' , sink, 'nonlin_transform.@masked_nonlin_warp')
@@ -240,8 +238,8 @@ nonreg.connect(antsregistration, 'forward_transforms', sink, 'nonlin_transform.@
 lin_epi = Node(ants.resampling.ApplyTransforms(dimension=3),
                    name='lintrans_epi')
 
-nonreg.connect(c3daffine, 'itk_transform', lin_epi, 'transforms')
-nonreg.connect(calc_mean, 'out_file', lin_epi, 'input_image')
+nonreg.connect(itk, 'itk_transform', lin_epi, 'transforms')
+nonreg.connect(tmean, 'out_file', lin_epi, 'input_image')
 nonreg.connect(addinv, 'out_file', lin_epi, 'reference_image')
 nonreg.connect(lin_epi, 'output_image', sink, 'lin_transform.@lin_warp')
 
@@ -258,7 +256,7 @@ nonreg.connect(mask_lin_epi, 'out_file', sink, 'lin_transform.@masked_lin_warp')
 merge_transforms = Node(util.Merge(2),
               name='merge_transforms')
 
-nonreg.connect(c3daffine, 'itk_transform', merge_transforms, 'in1')
+nonreg.connect(itk, 'itk_transform', merge_transforms, 'in1')
 nonreg.connect(antsregistration, 'reverse_transforms', merge_transforms, 'in2')
 
 
@@ -266,7 +264,7 @@ nonlin_orig = Node(ants.resampling.ApplyTransforms(dimension=3),
                    name='nonlintrans_epi')
 
 nonreg.connect(merge_transforms, 'out', nonlin_orig, 'transforms')
-nonreg.connect(calc_mean, 'out_file', nonlin_orig, 'input_image')
+nonreg.connect(tmean, 'out_file', nonlin_orig, 'input_image')
 nonreg.connect(mriconvert, 'out_file',  nonlin_orig, 'reference_image')
 nonreg.connect(nonlin_orig, 'output_image', sink, 'nonlin_transform.@nonlin_inv_warp')
 
