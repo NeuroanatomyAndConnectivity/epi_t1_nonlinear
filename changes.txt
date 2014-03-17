@@ -120,35 +120,39 @@ g testing bsplinesyn
 -> cc doesn't look good
 
 ########################################################################
+h aparc+aseg
 
+didn't work
+
+############################
 
 i include affine step again
 -> affine doesn't look good, nonlinear even worse, very big
+
 
 #########################################################################
 j masking twice as suggested in forum
 1 dil 3 intersect with fov for masking in ants (both), dil3 ero3 for masking anatomy before
 -> promising? but actually a bit too small now, ventricles compressed, try dilating the mask even more for usage in ants
--> images don't totally fit. --> turns out to be problem with nipype 'bugfix'
+-> images don't totally fit. --> problem in nipype?!
 
 2 dilating ants mask by 10, calculating tight mask directly from ribbon
 -> should probably dilate and erode in steps, looks a bit edgy
--> this looks fabulous!
+-> this looks great!  NO IT DOESNT
 - maybe still a bit too much in the center, problems in cerebellum/brainstem, etc. but still!
 
 3 try with alternative inversion (recip)
--> even better (borders and gyri etc match much better)
+-> even better (borders and gyri etc match much better) STILL NOT GOOD
 -> but problems with cerebellum 
 -> AND: problem with posterior part of cc and veins -> stretches too much now, not with other inversion. (probably try less dilation) 
 -> AND: problems where EPI doesn't cover anatomy (probably mask this out in tight mask?)
 
 4 try orginal inversion but masking afterwards
--> really really good. 
+-> really really good. NO!
 -> only things: 
 -> cerebellum/brain stem: try less dilation
 -> still a bit peculiar at FOV border: intersect fov with tight mask
 -> values of inverted brain very high, think about masking-inversion-remasking?
-
 
 5 reducing dilation back to 3
 (and trying to fix ants apply problem)
@@ -181,10 +185,26 @@ j masking twice as suggested in forum
 10 back to not restrict completely to phase encoding, for fov, use var image which should be clipped
 -> doesn't work , mask isn't clipped, despite image is (probably just has a zero line)
 
+11 integrate clip
+-> helps
+
+12 clip by 2
+-> changes in unclipped images also, stick with 1
 
 
+13 restrict to phase encoding direction - again, sampling none
+-> that actually helps with the excessive deformation in posterior parts of 0144
 
-####################################################
+14 gradient step to 0.5 -> overwritten (see below)
+-> much worse
+
+13a only sampling to none, no restriction
+-> no that isnt it
+
+14 clip back to 1, phase encoding restricted, sampling to none, radius to 10
+-> no
+
+################################################################################
 k different options starting from fixed masking
 
 1 fewer iterations : 20:10 (and undo j9)
@@ -218,13 +238,122 @@ l mattes
 -> no no
 
 ###########################################
+m synparameters
 
-keep in mind: problem to meet large vein, particularly 0144, this stretches to much in general
-would this be helped with having  a full mask?
-dilate/erode in steps
-mask also epi again before?
-changing fixed/moving
-changing iterations
-other algorithm/metric? (mi after all?)
+1 more smoothing (3,2)
+-> interesting, maybe better? at least less deformation in post parts
+->  no actually for 144 it makes it much worse, bigger
+
+2 even more smoothing (6,3)
+-> ridiculous
+
+3 no smoothing (0,0)
+-> little difference, maybe a bit better
+
+4 no smoothing (0,0) and more shrinkage (4,2)
+no!
+
+5 no smoothing, shrinkage (1,1)
+-> this is better in a way but also doesn't achieve full coverage in the front
+
+6 same but with radius 1
+-> even less coverage
+
+7 same but with radius 10
+-> do think this is better, less extreme but still covering
+-> maybe also worse for 1128: weird twist of cerebellum
+
+8 like 7 but with restriction to phase encoding
+-> i would say better, a little bit worse with the latching to the EPI border, that needs to be fixed still
+
+9 like 8 but 0.1 and no sampling strategy
+-> little difference, maybe a bit better, but also longer i think
+-> in 1128: less extreme but tendency to less coverage
+
+10 only one level
+-> basically no change
+-> 1128 maybe little less extreme, little less coverage?
+
+11 changing update field sigma to 0
+-> now it doesn't change much to linear (interrupted)
+
+12 changing update field sigma to 10
+-> not good, less coverage
+
+13 radius back to 6 (update field sigma 3)
+little change
+
+14 radius back to 4
+-> not it covers even less! why? no
+-> a bit better?
+
+15 radius 4 and back to 2 levels 
+-> bit better
+
+16 less restriction again
+
+---> smoothing 1/0, shrinkage 2/1, radius 4 quite ok
+
+
+###########################################
+n segmentation
+
+n1 the bigger mask only has the effect from before -> latching to the borders. 
+maybe try again when contrast problem is solved
+
+
+###########################################
+o contrast
+
+1 z score epi for more comparable contrast inside/outside
+-> not soo good
+
+2 z score anat too
+-> this might be good, but now it is not really enough
+
+3  like 2 but radius 4
+******caution, was still on radius 10!!!*******
+-> not very pretty
+
+4 inversion by just -1 after zscoring, then remasking
+intersting, can't really tell the outcome, seems less extreme sometimes and less sensitive to the tight mask,
+but then with the vein more distortion again in 1128 (latches MORE to the mask), not so much in 144, in 0190 i actually find the vein better here
+possibly this makes the outer mask influence the result more
+
+109:wird weniger hinten eingesogen, vene kippt auch, aber weniger extrem, 
+axial ist das biegen der gyri am rand evtl schlimmer
+brain stem besser
+clipped part besser
+temporal lobes besser
+
+1128 vielleicht auch besser, vene nicht so schön, aber vorher eigentlich auch nicht perfekt
+
+
+5 raise values to be positive again
+-> no difference
+
+6 no masking of anat within ants
+-> no
+
+7 dil tight mask by 1, dil mask by 5
+-> no
+
+8 tight mask not dilated, dil mask by 5
+-> little diff, maybe a bit smaller
+
+9 by 20
+-> no
+
+10 dil0/1
+->no
+
+
+p contrast and automask
+
+1 automask epi before zscoring and apply dilated automask in ants
+
+2 remask after z scoring
+-> interesting, try applying deformation
+-> no, almost no recovery, weird distortions inside
 
 
