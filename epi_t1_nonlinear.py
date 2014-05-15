@@ -124,7 +124,7 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     mask_trans = Node(interface=ants.resampling.ApplyTransforms(dimension=3,
                                                                    interpolation='NearestNeighbor',
                                                                    invert_transform_flags=[True]), 
-                     name = 'transform_mask')
+                     name = 'mask_trans')
 
     nonreg.connect(itk, ('itk_transform',filename_to_list), mask_trans, 'transforms')
     nonreg.connect(intersect, 'out_file',  mask_trans, 'input_image')
@@ -145,9 +145,9 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
 
     # invert masked anatomical image
     anat_min_max = Node(interface=fsl.utils.ImageStats(op_string = '-R'),
-                     name='derive_anat_intensities')
+                     name='anat_min_max')
     epi_min_max = Node(interface=fsl.utils.ImageStats(op_string = '-r'), 
-                     name='derive_epi_intensities')
+                     name='epi_min_max')
 
     nonreg.connect(maskanat, 'out_file', anat_min_max, 'in_file') 
     nonreg.connect(tmean, 'out_file', epi_min_max, 'in_file') 
@@ -195,19 +195,23 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
                                                            collapse_output_transforms = True,
                                                            output_inverse_warped_image = True,
                                                            output_warped_image = True),
-                      name = 'nonlinear_transformation')
+                      name = 'antsreg')
 
     nonreg.connect(itk, 'itk_transform', antsreg, 'initial_moving_transform')
     nonreg.connect(maskepi, 'out_file', antsreg, 'fixed_image')
     nonreg.connect(addinv, 'out_file', antsreg, 'moving_image')
     
     # output
+    
+    def second_element(file_list):
+        return file_list[1]
+    
     outputnode = Node(interface=util.IdentityInterface(fields=['lin_epi2anat', 'nonlin_epi2anat', 'nonlin_anat2epi']),
                       name = 'outputnode')
     
     nonreg.connect(itk, 'itk_transform', outputnode, 'lin_epi2anat')
-    nonreg.connect(antsreg, 'reverse_transforms', outputnode, 'nonlin_epi2anat')
-    nonreg.connect(antsreg, 'forward_transforms', outputnode, 'nonlin_anat2epi')
+    nonreg.connect(antsreg, ('reverse_transforms', second_element), outputnode, 'nonlin_epi2anat')
+    nonreg.connect(antsreg, ('forward_transforms', second_element), outputnode, 'nonlin_anat2epi')
 
     return nonreg
 
