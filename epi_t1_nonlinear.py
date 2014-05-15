@@ -62,78 +62,78 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     nonreg.connect(inputnode, 'fs_subject_id', fs_import, 'subject_id')
     
     # convert brain.mgz to niigz
-    mgz2niigz = Node(interface=fs.MRIConvert(out_type='niigz'),
-                     name='mgz2niigz')
+    mriconvert = Node(interface=fs.MRIConvert(out_type='niigz'),
+                     name='mriconvert')
 
-    nonreg.connect(fs_import, 'brain', mgz2niigz, 'in_file')
+    nonreg.connect(fs_import, 'brain', mriconvert, 'in_file')
 
     # calculate rigid transformation of mean epi to t1 with bbregister
     bbregister = Node(interface=fs.BBRegister(init='fsl', 
                                               contrast_type='t2', 
                                               out_fsl_file = True), 
-                     name='lin_transform')
+                     name='bbregister')
 
     nonreg.connect(inputnode,'fs_subjects_dir', bbregister, 'subjects_dir')
     nonreg.connect(inputnode, 'fs_subject_id', bbregister, 'subject_id')
     nonreg.connect(tmean, 'out_file', bbregister, 'source_file')
     
     # convert linear transformation to itk format compatible with ants
-    c3daffine = Node(interface=c3.C3dAffineTool(fsl2ras=True,
+    itk = Node(interface=c3.C3dAffineTool(fsl2ras=True,
                                                 itk_transform=True), 
-                     name='convert_lin_transform')
+                     name='itk')
 
-    nonreg.connect(tmean, 'out_file', c3daffine, 'source_file')
-    nonreg.connect(mgz2niigz, 'out_file', c3daffine, 'reference_file')
-    nonreg.connect(bbregister, 'out_fsl_file', c3daffine, 'transform_file')
+    nonreg.connect(tmean, 'out_file', itk, 'source_file')
+    nonreg.connect(mriconvert, 'out_file', itk, 'reference_file')
+    nonreg.connect(bbregister, 'out_fsl_file', itk, 'transform_file')
     
     # binarize and dilate ribbon mask
-    ribbon_mask = Node(interface=fs.model.Binarize(dilate=3,
+    ribbon = Node(interface=fs.model.Binarize(dilate=3,
                                               min=0.1,
                                               out_type='nii.gz'), 
-                     name='ribbon_mask')
+                     name='ribbon')
 
     def pull_ribbon(ribbon_list):
         ribbon_both=ribbon_list[1]
         return ribbon_both
 
-    nonreg.connect(fs_import, ('ribbon',pull_ribbon), ribbon_mask, 'in_file')
+    nonreg.connect(fs_import, ('ribbon',pull_ribbon), ribbon, 'in_file')
     
     #create bounding box mask and rigidly transform into anatomical (fs) space
-    boundingbox = Node(interface=fs.model.Binarize(min=0.0,
+    fov = Node(interface=fs.model.Binarize(min=0.0,
                                                    out_type='nii.gz'),
-                     name='boundingbox_mask')
+                     name='fov')
 
-    nonreg.connect(tmean, 'out_file', boundingbox, 'in_file')
+    nonreg.connect(tmean, 'out_file', fov, 'in_file')
 
-    transformbox = Node(interface=ants.resampling.ApplyTransforms(dimension=3,
+    fov_trans = Node(interface=ants.resampling.ApplyTransforms(dimension=3,
                                                                   interpolation='NearestNeighbor'),
-                     name='transform_boundingbox_mask')
+                     name='fov_trans')
 
-    nonreg.connect(c3daffine, ('itk_transform',filename_to_list), transformbox, 'transforms')
-    nonreg.connect(boundingbox, 'binary_file', transformbox, 'input_image')
-    nonreg.connect(ribbon_mask, 'binary_file', transformbox, 'reference_image')
+    nonreg.connect(itk, ('itk_transform',filename_to_list), fov_trans, 'transforms')
+    nonreg.connect(fov, 'binary_file', fov_trans, 'input_image')
+    nonreg.connect(ribbon, 'binary_file', fov_trans, 'reference_image')
 
     # intersect both masks
     intersect = Node(interface=fsl.maths.BinaryMaths(operation = 'mul'), 
-                     name = 'combined_mask')
+                     name = 'intersect')
 
-    nonreg.connect(ribbon_mask, 'binary_file', intersect, 'in_file')
-    nonreg.connect(transformbox, 'output_image', intersect, 'operand_file')
+    nonreg.connect(ribbon, 'binary_file', intersect, 'in_file')
+    nonreg.connect(fov_trans, 'output_image', intersect, 'operand_file')
 
     # inversly transform mask and mask original epi
-    transformmask = Node(interface=ants.resampling.ApplyTransforms(dimension=3,
+    mask_trans = Node(interface=ants.resampling.ApplyTransforms(dimension=3,
                                                                    interpolation='NearestNeighbor',
                                                                    invert_transform_flags=[True]), 
                      name = 'transform_mask')
 
-    nonreg.connect(c3daffine, ('itk_transform',filename_to_list), transformmask, 'transforms')
-    nonreg.connect(intersect, 'out_file',  transformmask, 'input_image')
-    nonreg.connect(tmean, 'out_file', transformmask, 'reference_image')
+    nonreg.connect(itk, ('itk_transform',filename_to_list), mask_trans, 'transforms')
+    nonreg.connect(intersect, 'out_file',  mask_trans, 'input_image')
+    nonreg.connect(tmean, 'out_file', mask_trans, 'reference_image')
 
     maskepi = Node(interface=fs.utils.ApplyMask(), 
                      name='maskepi')
 
-    nonreg.connect(transformmask, 'output_image', maskepi, 'mask_file')
+    nonreg.connect(mask_trans, 'output_image', maskepi, 'mask_file')
     nonreg.connect(tmean, 'out_file', maskepi, 'in_file')
 
     # mask anatomical image (brain)
@@ -141,12 +141,12 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
                      name='maskanat')
 
     nonreg.connect(intersect, 'out_file', maskanat, 'mask_file')
-    nonreg.connect(mgz2niigz, 'out_file', maskanat, 'in_file')
+    nonreg.connect(mriconvert, 'out_file', maskanat, 'in_file')
 
     # invert masked anatomical image
     anat_min_max = Node(interface=fsl.utils.ImageStats(op_string = '-R'),
                      name='derive_anat_intensities')
-    epi_min_max = Node(interface=fsl.utils.ImageStats(op_string = '-R'), 
+    epi_min_max = Node(interface=fsl.utils.ImageStats(op_string = '-r'), 
                      name='derive_epi_intensities')
 
     nonreg.connect(maskanat, 'out_file', anat_min_max, 'in_file') 
@@ -160,13 +160,13 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     calcinv = Node(interface=Function(input_names=['anat_min_max', 'epi_min_max'],
                                       output_names=['mul', 'add'],
                                       function=calc_inversion),
-                     name='calculate_inversion')
+                     name='calcinv')
 
     nonreg.connect(anat_min_max, 'out_stat', calcinv, 'anat_min_max')
     nonreg.connect(epi_min_max, 'out_stat', calcinv, 'epi_min_max')
 
-    mulinv = Node(interface=fsl.maths.BinaryMaths(operation='mul'), name='invert_intensities')
-    addinv = Node(interface=fsl.maths.BinaryMaths(operation='add'), name='shift_intensities')
+    mulinv = Node(interface=fsl.maths.BinaryMaths(operation='mul'), name='mulinv')
+    addinv = Node(interface=fsl.maths.BinaryMaths(operation='add'), name='addinv')
 
     nonreg.connect(maskanat, 'out_file', mulinv, 'in_file')
     nonreg.connect(calcinv, 'mul', mulinv, 'operand_value')
@@ -197,7 +197,7 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
                                                            output_warped_image = True),
                       name = 'nonlinear_transformation')
 
-    nonreg.connect(c3daffine, 'itk_transform', antsreg, 'initial_moving_transform')
+    nonreg.connect(itk, 'itk_transform', antsreg, 'initial_moving_transform')
     nonreg.connect(maskepi, 'out_file', antsreg, 'fixed_image')
     nonreg.connect(addinv, 'out_file', antsreg, 'moving_image')
     
@@ -205,7 +205,7 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     outputnode = Node(interface=util.IdentityInterface(fields=['lin_epi2anat', 'nonlin_epi2anat', 'nonlin_anat2epi']),
                       name = 'outputnode')
     
-    nonreg.connect(c3daffine, 'itk_transform', outputnode, 'lin_epi2anat')
+    nonreg.connect(itk, 'itk_transform', outputnode, 'lin_epi2anat')
     nonreg.connect(antsreg, 'reverse_transforms', outputnode, 'nonlin_epi2anat')
     nonreg.connect(antsreg, 'forward_transforms', outputnode, 'nonlin_anat2epi')
 
