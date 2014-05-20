@@ -34,6 +34,7 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     Outputs::
 
         outputnode.lin_epi2anat     # ITK format
+        outputnode.lin_anat2epi     # ITK format
         outputnode.nonlin_epi2anat  # ANTs specific 5D deformation field
         outputnode.nonlin_anat2epi  # ANTs specific 5D deformation field
 
@@ -79,7 +80,7 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     
     # convert linear transformation to itk format compatible with ants
     itk = Node(interface=c3.C3dAffineTool(fsl2ras=True,
-                                                itk_transform=True), 
+                                          itk_transform='epi2anat_affine.txt'), 
                      name='itk')
 
     nonreg.connect(tmean, 'out_file', itk, 'source_file')
@@ -179,11 +180,10 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
                                                            metric = ['CC'],
                                                            metric_weight = [1.0],
                                                            radius_or_number_of_bins = [4],
-                                                           sampling_percentage = [0.3],
-                                                           sampling_strategy = ['Regular'],
+                                                           sampling_strategy = ['None'],
                                                            transforms = ['SyN'],
                                                            args = '-g .1x1x.1',
-                                                           transform_parameters = [(0.20,3,0)],
+                                                           transform_parameters = [(0.10,3,0)],
                                                            number_of_iterations = [[10,5]],
                                                            convergence_threshold = [1e-06],
                                                            convergence_window_size = [10],
@@ -206,10 +206,15 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     def second_element(file_list):
         return file_list[1]
     
-    outputnode = Node(interface=util.IdentityInterface(fields=['lin_epi2anat', 'nonlin_epi2anat', 'nonlin_anat2epi']),
+    def first_element(file_list):
+        return file_list[0]
+    
+    outputnode = Node(interface=util.IdentityInterface(fields=['lin_epi2anat', 'lin_anat2epi',
+                                                               'nonlin_epi2anat', 'nonlin_anat2epi']),
                       name = 'outputnode')
     
     nonreg.connect(itk, 'itk_transform', outputnode, 'lin_epi2anat')
+    nonreg.connect(antsreg, ('forward_transforms', first_element), outputnode, 'lin_anat2epi')
     nonreg.connect(antsreg, ('reverse_transforms', second_element), outputnode, 'nonlin_epi2anat')
     nonreg.connect(antsreg, ('forward_transforms', second_element), outputnode, 'nonlin_anat2epi')
 
