@@ -41,7 +41,7 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     """
 
     nonreg = Workflow(name='epi_t1_nonlinear')
-
+    
     # input
     inputnode = Node(interface=util.IdentityInterface(fields=['fs_subject_id','fs_subjects_dir', 'realigned_epi']),
                      name='inputnode')
@@ -173,6 +173,7 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     nonreg.connect(calcinv, 'mul', mulinv, 'operand_value')
     nonreg.connect(mulinv, 'out_file', addinv, 'in_file')
     nonreg.connect(calcinv, 'add', addinv, 'operand_value')
+    
 
     # nonlinear transformation of masked anat to masked epi with ants
     antsreg = Node(interface = ants.registration.Registration(dimension = 3,
@@ -192,7 +193,7 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
                                                            sigma_units = ['vox'],
                                                            use_estimate_learning_rate_once = [True],
                                                            use_histogram_matching = [True],
-                                                           collapse_output_transforms = True,
+                                                           collapse_output_transforms=True,
                                                            output_inverse_warped_image = True,
                                                            output_warped_image = True),
                       name = 'antsreg')
@@ -215,8 +216,8 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     
     nonreg.connect(itk, 'itk_transform', outputnode, 'lin_epi2anat')
     nonreg.connect(antsreg, ('forward_transforms', first_element), outputnode, 'lin_anat2epi')
-    nonreg.connect(antsreg, ('reverse_transforms', second_element), outputnode, 'nonlin_epi2anat')
     nonreg.connect(antsreg, ('forward_transforms', second_element), outputnode, 'nonlin_anat2epi')
+    nonreg.connect(antsreg, ('reverse_transforms', second_element), outputnode, 'nonlin_epi2anat')
 
     return nonreg
 
