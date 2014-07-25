@@ -108,9 +108,9 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
             if 'aparc+aseg' in name:
                 return name
 
-    aparc_aseg_mask = Node(fs.Binarize(min=0.5,
-                                 dilate=3,
-                                 erode=2,
+    aparc_aseg_mask = Node(fs.Binarize(min=0.1,
+                                 dilate=10,
+                                 erode=7,
                                  out_type='nii.gz',
                                  binary_file='aparc_aseg_mask.nii.gz'),
                    name='aparc_aseg_mask')
@@ -120,7 +120,8 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     fillholes = Node(fsl.maths.MathsCommand(args='-fillh'),
                      name='fillholes')
     
-    
+    nonreg.connect([(fs_import, aparc_aseg_mask, [(('aparc_aseg', get_aparc_aseg), 'in_file')]),
+                     (aparc_aseg_mask, fillholes, [('binary_file', 'in_file')])])
     
     
     #create bounding box mask and rigidly transform into anatomical (fs) space
@@ -136,14 +137,14 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
 
     nonreg.connect(itk, ('itk_transform',filename_to_list), fov_trans, 'transforms')
     nonreg.connect(fov, 'binary_file', fov_trans, 'input_image')
-    nonreg.connect(aparc_aseg_mask, 'binary_file', fov_trans, 'reference_image')
+    nonreg.connect(fillholes, 'out_file', fov_trans, 'reference_image')
     #nonreg.connect(ribbon, 'binary_file', fov_trans, 'reference_image')
 
     # intersect both masks
     intersect = Node(interface=fsl.maths.BinaryMaths(operation = 'mul'), 
                      name = 'intersect')
 
-    nonreg.connect(aparc_aseg_mask, 'binary_file', intersect, 'in_file')
+    nonreg.connect(fillholes, 'out_file', intersect, 'in_file')
     #nonreg.connect(ribbon, 'binary_file', intersect, 'in_file')
     nonreg.connect(fov_trans, 'output_image', intersect, 'operand_file')
 
