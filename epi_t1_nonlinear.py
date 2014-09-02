@@ -88,16 +88,41 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     nonreg.connect(bbregister, 'out_fsl_file', itk, 'transform_file')
     
     # binarize and dilate ribbon mask
-    ribbon = Node(interface=fs.model.Binarize(dilate=3,
-                                              min=0.1,
-                                              out_type='nii.gz'), 
-                     name='ribbon')
+#     ribbon = Node(interface=fs.model.Binarize(dilate=3,
+#                                               min=0.1,
+#                                               out_type='nii.gz'), 
+#                      name='ribbon')
+# 
+#     def pull_ribbon(ribbon_list):
+#         ribbon_both=ribbon_list[1]
+#         return ribbon_both
+# 
+#     nonreg.connect(fs_import, ('ribbon',pull_ribbon), ribbon, 'in_file')
 
-    def pull_ribbon(ribbon_list):
-        ribbon_both=ribbon_list[1]
-        return ribbon_both
 
-    nonreg.connect(fs_import, ('ribbon',pull_ribbon), ribbon, 'in_file')
+    # get aparc aseg mask
+    
+    # create brainmask from aparc+aseg
+    def get_aparc_aseg(files):
+        for name in files:
+            if 'aparc+aseg' in name:
+                return name
+
+    aparc_aseg_mask = Node(fs.Binarize(min=0.1,
+                                 dilate=10,
+                                 erode=7,
+                                 out_type='nii.gz',
+                                 binary_file='aparc_aseg_mask.nii.gz'),
+                   name='aparc_aseg_mask')
+
+
+    # fill holes in mask
+    fillholes = Node(fsl.maths.MathsCommand(args='-fillh'),
+                     name='fillholes')
+    
+    nonreg.connect([(fs_import, aparc_aseg_mask, [(('aparc_aseg', get_aparc_aseg), 'in_file')]),
+                     (aparc_aseg_mask, fillholes, [('binary_file', 'in_file')])])
+    
     
     #create bounding box mask and rigidly transform into anatomical (fs) space
     fov = Node(interface=fs.model.Binarize(min=0.0,
@@ -112,13 +137,15 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
 
     nonreg.connect(itk, ('itk_transform',filename_to_list), fov_trans, 'transforms')
     nonreg.connect(fov, 'binary_file', fov_trans, 'input_image')
-    nonreg.connect(ribbon, 'binary_file', fov_trans, 'reference_image')
+    nonreg.connect(fillholes, 'out_file', fov_trans, 'reference_image')
+    #nonreg.connect(ribbon, 'binary_file', fov_trans, 'reference_image')
 
     # intersect both masks
     intersect = Node(interface=fsl.maths.BinaryMaths(operation = 'mul'), 
                      name = 'intersect')
 
-    nonreg.connect(ribbon, 'binary_file', intersect, 'in_file')
+    nonreg.connect(fillholes, 'out_file', intersect, 'in_file')
+    #nonreg.connect(ribbon, 'binary_file', intersect, 'in_file')
     nonreg.connect(fov_trans, 'output_image', intersect, 'operand_file')
 
     # inversly transform mask and mask original epi
