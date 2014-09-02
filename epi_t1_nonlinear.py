@@ -86,22 +86,9 @@ def create_epi_t1_nonlinear_pipeline(name='epi_t1_nonlinear'):
     nonreg.connect(tmean, 'out_file', itk, 'source_file')
     nonreg.connect(mriconvert, 'out_file', itk, 'reference_file')
     nonreg.connect(bbregister, 'out_fsl_file', itk, 'transform_file')
-    
-    # binarize and dilate ribbon mask
-#     ribbon = Node(interface=fs.model.Binarize(dilate=3,
-#                                               min=0.1,
-#                                               out_type='nii.gz'), 
-#                      name='ribbon')
-# 
-#     def pull_ribbon(ribbon_list):
-#         ribbon_both=ribbon_list[1]
-#         return ribbon_both
-# 
-#     nonreg.connect(fs_import, ('ribbon',pull_ribbon), ribbon, 'in_file')
 
 
     # get aparc aseg mask
-    
     # create brainmask from aparc+aseg
     def get_aparc_aseg(files):
         for name in files:
